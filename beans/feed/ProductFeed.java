@@ -1,5 +1,6 @@
 package excel.beans.feed;
 
+
 /**
  * Product details, represented by array of strings
  * @author aahmad
@@ -30,7 +31,7 @@ public class ProductFeed {
 	public String getProductDetails(int detailId) {
 		return productDetails[detailId];
 	}
-
+	
 	public static final int CATEGORY = 0;
 	public static final int SUB_CATEGORY_1 = 1;
 	public static final int SUB_CATEGORY_2 = 2;

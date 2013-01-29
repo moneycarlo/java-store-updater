@@ -26,6 +26,7 @@ import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import jxl.write.biff.RowsExceededException;
 import excel.beans.feed.ProductFeed;
+import excel.beans.feed.QtyOnHandFeed;
 import excel.beans.store.Attributes;
 import excel.beans.store.Categories;
 import excel.beans.store.Discounts;
@@ -49,6 +50,7 @@ public class UpdateStore {
 		ConfigFileReader.initialize();
 		
 		String feedFile = ConfigFileReader.getValue("feed.file.input");
+		String qtyFeedFile = ConfigFileReader.getValue("qty.feed.file.input");
 		String exportedFile = ConfigFileReader.getValue("export.file.input");
 		String updatedFile = ConfigFileReader.getValue("modified.import.file.output");
 		String discontinuedFile = ConfigFileReader.getValue("discontinued.file.input");
@@ -60,8 +62,8 @@ public class UpdateStore {
 			errors = true;
 		}
 
-		if (exportedFile == null || !(new File(exportedFile)).exists()) {
-			System.out.println("Exported store file missing or does not exist at location specified\nCheck export.file.input in properties file\n");
+		if (qtyFeedFile == null || !(new File(qtyFeedFile)).exists()) {
+			System.out.println("Quantity feed file missing or does not exist at location specified\nCheck qty.feed.file.input in properties file\n");
 			errors = true;
 		}
 		
@@ -75,36 +77,119 @@ public class UpdateStore {
 			errors = true;
 		}
 		
+		boolean updateAll = true;
+		
+		if (args.length > 0) {
+			if ("updateqty".equalsIgnoreCase(args[0])) {
+				updateAll = false;
+				if (exportedFile == null || !(new File(exportedFile)).exists()) {
+					System.out.println("Exported store file missing or does not exist at location specified\nCheck export.file.input in properties file\n");
+					errors = true;
+				}
+			}
+			
+		}
+
 		if (errors) {
 			System.out.println("Cannot contiue, please correct the errors above and try again\n");
 			System.exit(-1);
 		}
 		
+		
 		UpdateStore create = new UpdateStore();
-
-		// read the feed file
-		Map<String, ProductFeed> feedContents = create.readFeed(feedFile);
 
 		// read the last exported contents
 		Store st = create.readExportedContents(exportedFile);
 		
-		// Read list of disabled SKUs
-		List<String> discontinuedProducts = create.readDiscontinuedProducts(discontinuedFile);
-		
-		// update categories
-		create.updateCategories(st, feedContents);
-		
-		// update products
-		create.updateProducts(st, feedContents, discontinuedProducts);
-		
-		// recreate all attributes
-		create.updateAttributes(st, feedContents);
+		if (updateAll) {
+			
+			System.out.println("No parameters, updating entire store");
+
+			// read the feed file
+			Map<String, ProductFeed> feedContents = create.readFeed(feedFile);
+			
+			// Read list of disabled SKUs
+			List<String> discontinuedProducts = create.readDiscontinuedProducts(discontinuedFile);
+
+			// update categories
+			create.updateCategories(st, feedContents);
+
+			// update products
+			create.updateProducts(st, feedContents, discontinuedProducts);
+
+			// recreate all attributes
+			create.updateAttributes(st, feedContents);
+
+			// create all specials
+			create.updateSpecials(st, feedContents);
+		} else {
+
+			System.out.println("Update qty parameter provided, updating only quantities");
+			// read the qty feed file
+			Map<String, QtyOnHandFeed> qtyFeedContents = create.readQtyFeed(qtyFeedFile);
+			
+			create.updateQty(st, qtyFeedContents);
+		}
 		
 		// write excel file back
 		create.writeStoreContents(updatedFile, st);
 
 		System.out.println("Finished");
 
+	}
+	
+	/**
+	 * Recreates the special tab
+	 * @param storeContents
+	 * @param feedContents
+	 */
+	private void updateSpecials(Store storeContents, Map<String, ProductFeed> feedContents) {
+		
+		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
+		Map<String, StoreSheetItem> productMap = generateItemMap(storeProducts, Products.SKU);
+		
+		List<ProductFeed> feedList = getFeedList(feedContents);
+		
+		List<StoreSheetItem> specialsList = new ArrayList<StoreSheetItem>();
+
+		ProductFeed prod;
+		StoreSheetItem storeSpecials;
+		StoreSheetItem storeProduct;
+		
+		String sku;
+		String productId;
+		
+		for (int i = 0; i < feedList.size(); i++) {
+			
+			// get the product
+			prod = feedList.get(i);
+			
+			// product sku
+			sku = prod.getProductDetails(ProductFeed.PRODUCT_CODE);
+			
+			// get the product in the store based on the sku
+			storeProduct =  productMap.get(sku);
+			
+			// if the product is missing, we cannot get the product id to put in attributes, ignore the product
+			// should not ideally happen since the product is already updated, but still a safe check to avoid NPE
+			if (storeProduct == null) {
+				System.err.println("Product with SKU " + sku + " not found");
+				continue;
+			}
+
+			// get the product id in DB
+			productId = storeProduct.getDetails(Products.PRODUCT_ID);
+
+			// if map value exists, create a new specials item
+			if (!isEmpty(prod.getProductDetails(ProductFeed.MAP))) {
+				storeSpecials = createSpecials(productId, "Default", "0", prod.getProductDetails(ProductFeed.MAP), "0000-00-00", "0000-00-00");
+				specialsList.add(storeSpecials);
+			}
+			
+			// put all the specials back in store
+			storeContents.putAllSpecials(generateItemListMap(specialsList, Attributes.PRODUCT_ID));
+			
+		}
 	}
 	
 	/**
@@ -217,7 +302,52 @@ public class UpdateStore {
 	
 		return attribute;
 	}
+
+	/**
+	 * Create specials object
+	 * @param productId product id value
+	 * @param groupId group id value
+	 * @param priority priority value
+	 * @param price price value
+	 * @param dateStart date start value
+	 * @param dateEnd date end value
+	 * @return
+	 */
+	private Specials createSpecials(String productId, String groupId, String priority, String price, String dateStart, String dateEnd) {
+		Specials specials = new Specials();
+		
+		specials.addDetails(Specials.PRODUCT_ID, productId, false);
+		specials.addDetails(Specials.CUSTOMER_GROUP, groupId, false);
+		specials.addDetails(Specials.PRIORITY, priority, false);
+		specials.addDetails(Specials.PRICE, price, false);
+		specials.addDetails(Specials.DATE_START, dateStart, false);
+		specials.addDetails(Specials.DATE_END, dateEnd, false);
+		
+		
+		return specials;
+	}
 	
+	/**
+	 * Updates qty only
+	 * @param storeContents
+	 * @param qtyOnHandFeed
+	 */
+	private void updateQty(Store storeContents, Map<String, QtyOnHandFeed> qtyOnHandFeed) {
+		
+		// get all existing products
+		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
+		String sku;
+		String qty;
+		StoreSheetItem product;
+		
+		for (int i = 0; i < storeProducts.size(); i++) {
+			sku = storeProducts.get(i).getDetails(Products.SKU);
+			storeProducts.get(i).addDetails(Products.QUANTITY, 
+					qtyOnHandFeed.get(sku) == null ? "0" : qtyOnHandFeed.get(sku).getProductDetails(QtyOnHandFeed.ONHAND), 
+					false);  
+		}
+		
+	}
 	
 	
 	/**
@@ -304,7 +434,9 @@ public class UpdateStore {
 							categoryMap), true);
 			storeProd.addDetails(Products.SKU, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
 			storeProd.addDetails(Products.UPC, prod.getProductDetails(ProductFeed.UPC_CODE), true);
-			storeProd.addDetails(Products.QUANTITY, prod.getProductDetails(ProductFeed.QTY_ON_HAND), false);
+//			storeProd.addDetails(Products.QUANTITY, prod.getProductDetails(ProductFeed.QTY_ON_HAND), false);
+			String quan = prod.getProductDetails(ProductFeed.QTY_ON_HAND).trim().replaceAll("#N/A","0");
+			storeProd.addDetails(Products.QUANTITY, quan, false);
 			storeProd.addDetails(Products.MODEL, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
 			storeProd.addDetails(Products.MANUFACTURER, prod.getProductDetails(ProductFeed.BRAND), true);
 			storeProd.addDetails(Products.PRICE, prod.getProductDetails(ProductFeed.MSRP), true);
@@ -961,6 +1093,52 @@ public class UpdateStore {
 		}
 
 		return productFeed;
+	}
+	
+	/**
+	 * Reads the input qty feed file
+	 * @param feedFile qty feed file path
+	 * @return {@link Map} with UPS as key and {@link QtyOnHandFeed} as value
+	 * @throws IOException
+	 */
+	private Map<String, QtyOnHandFeed> readQtyFeed(String feedFile) {
+		File inputWorkbook = new File(feedFile);
+		Workbook w;
+		Map<String, QtyOnHandFeed> qtyFeed = new HashMap<String, QtyOnHandFeed>();
+		QtyOnHandFeed qtyOnHandFeed;
+		try {
+			w = Workbook.getWorkbook(inputWorkbook);
+			// Get the first sheet
+			Sheet sheet = w.getSheet(0);
+			System.out.println("Reading sheet " + sheet.getName());
+			
+			// skip the header
+			for (int i = 1; i < sheet.getRows(); i++) {
+				
+				qtyOnHandFeed = new QtyOnHandFeed();
+				
+				for (int j = 0; j < sheet.getColumns(); j++) {
+					
+					Cell cell = sheet.getCell(j, i);
+					
+					qtyOnHandFeed.addProductDetails(j, cell.getContents());
+					
+				}
+				
+				if (qtyFeed.containsKey(qtyOnHandFeed.getProductDetails(QtyOnHandFeed.PRODUCTNUMBER))) {
+					System.err.println(qtyOnHandFeed.getProductDetails(QtyOnHandFeed.PRODUCTNUMBER) + " is repeating");
+				} else {
+					qtyFeed.put(qtyOnHandFeed.getProductDetails(QtyOnHandFeed.PRODUCTNUMBER), qtyOnHandFeed);
+				}
+				
+			}
+		} catch (BiffException e) {
+			e.printStackTrace();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+		
+		return qtyFeed;
 	}
 	
 	/**
