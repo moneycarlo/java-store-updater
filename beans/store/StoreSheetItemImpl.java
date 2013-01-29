@@ -4,8 +4,14 @@ public abstract class StoreSheetItemImpl implements StoreSheetItem {
 	
 	protected String[] details;
 	
-	public void addDetails(int detailId, String detail) {
-		this.details[detailId] = detail;
+	public void addDetails(int detailId, String detail, boolean onlyIfEmpty) {
+		if (onlyIfEmpty) {
+			if (this.details[detailId] == null || this.details[detailId].trim().length() == 0) {
+				this.details[detailId] = detail;
+			}
+		} else {
+			this.details[detailId] = detail;
+		}
 	}
 
 	public String getDetails(int detailId) {

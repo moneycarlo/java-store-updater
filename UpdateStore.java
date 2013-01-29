@@ -208,12 +208,12 @@ public class UpdateStore {
 	private Attributes createAttributes(String productId, String languageId, String attGroup, String attName, String text, String sortOrder) {
 		
 		Attributes attribute = new Attributes();
-		attribute.addDetails(Attributes.PRODUCT_ID, productId);
-		attribute.addDetails(Attributes.LANGUAGE_ID, languageId);
-		attribute.addDetails(Attributes.ATTRIBUTE_GROUP, attGroup);
-		attribute.addDetails(Attributes.ATTRIBUTE_NAME, attName);
-		attribute.addDetails(Attributes.TEXT, text);
-		attribute.addDetails(Attributes.SORT_ORDER, sortOrder);
+		attribute.addDetails(Attributes.PRODUCT_ID, productId, false);
+		attribute.addDetails(Attributes.LANGUAGE_ID, languageId, false);
+		attribute.addDetails(Attributes.ATTRIBUTE_GROUP, attGroup, false);
+		attribute.addDetails(Attributes.ATTRIBUTE_NAME, attName, false);
+		attribute.addDetails(Attributes.TEXT, text, false);
+		attribute.addDetails(Attributes.SORT_ORDER, sortOrder, false);
 	
 		return attribute;
 	}
@@ -267,21 +267,21 @@ public class UpdateStore {
 				// create a new product with default information
 				// these information need not be updated
 				storeProd = new Products();
-				storeProd.addDetails(Products.PRODUCT_ID, Integer.toString(++maxId));
-				storeProd.addDetails(Products.REQUIRES_SHIPPING, "yes");
-				storeProd.addDetails(Products.POINTS, "0");
-				storeProd.addDetails(Products.DATE_ADDED, DATETIME_FORMAT.format(new Date()));
-				storeProd.addDetails(Products.DATE_MODIFIED, DATETIME_FORMAT.format(new Date()));
-				storeProd.addDetails(Products.DATE_AVAILABLE, DATE_FORMAT.format(new Date()));
-				storeProd.addDetails(Products.UNIT, "lb");
-				storeProd.addDetails(Products.LENGTH_UNIT, "in");
-				storeProd.addDetails(Products.TAX_CLASS_ID, "9");
-				storeProd.addDetails(Products.VIEWED, "5");
-				storeProd.addDetails(Products.LANGUAGE_ID, "1");
-				storeProd.addDetails(Products.STOCK_STATUS_ID, "5");
-				storeProd.addDetails(Products.STORE_IDS, "0");
-				storeProd.addDetails(Products.SUBTRACT, "true");
-				storeProd.addDetails(Products.MINIMUM, "1");
+				storeProd.addDetails(Products.PRODUCT_ID, Integer.toString(++maxId), false);
+				storeProd.addDetails(Products.REQUIRES_SHIPPING, "yes", false);
+				storeProd.addDetails(Products.POINTS, "0", false);
+				storeProd.addDetails(Products.DATE_ADDED, DATETIME_FORMAT.format(new Date()), false);
+				storeProd.addDetails(Products.DATE_MODIFIED, DATETIME_FORMAT.format(new Date()), false);
+				storeProd.addDetails(Products.DATE_AVAILABLE, DATE_FORMAT.format(new Date()), false);
+				storeProd.addDetails(Products.UNIT, "lb", false);
+				storeProd.addDetails(Products.LENGTH_UNIT, "in", false);
+				storeProd.addDetails(Products.TAX_CLASS_ID, "9", false);
+				storeProd.addDetails(Products.VIEWED, "5", false);
+				storeProd.addDetails(Products.LANGUAGE_ID, "1", false);
+				storeProd.addDetails(Products.STOCK_STATUS_ID, "5", false);
+				storeProd.addDetails(Products.STORE_IDS, "0", false);
+				storeProd.addDetails(Products.SUBTRACT, "true", false);
+				storeProd.addDetails(Products.MINIMUM, "1", false);
 				updatedStoreProducts.add(storeProd);
 			}
 			
@@ -292,28 +292,28 @@ public class UpdateStore {
 
 			metadesc = prod.getProductDetails(ProductFeed.SHORT_DESCRIPTION);
 			metadesc = metadesc.substring(0,metadesc.indexOf("."));
-			storeProd.addDetails(Products.META_DESCRIPTION, metadesc + ".");
+			storeProd.addDetails(Products.META_DESCRIPTION, metadesc + ".", true);
 			image = prod.getProductDetails(ProductFeed.PRODUCT_CODE).trim().replaceAll(" ", "-");			
-			storeProd.addDetails(Products.IMAGE_NAME, "data/" + image + ".jpg");
-			storeProd.addDetails(Products.NAME, prod.getProductDetails(ProductFeed.PRODUCT_NAME));
+			storeProd.addDetails(Products.IMAGE_NAME, "data/" + image + ".jpg", true);
+			storeProd.addDetails(Products.NAME, prod.getProductDetails(ProductFeed.PRODUCT_NAME), true);
 			// comma separated categories
 			storeProd.addDetails(Products.CATEGORIES,
 					lookupCategories(prod.getProductDetails(ProductFeed.CATEGORY),
 							prod.getProductDetails(ProductFeed.SUB_CATEGORY_1),
 							prod.getProductDetails(ProductFeed.SUB_CATEGORY_2),
-							categoryMap));
-			storeProd.addDetails(Products.SKU, prod.getProductDetails(ProductFeed.PRODUCT_CODE));
-			storeProd.addDetails(Products.UPC, prod.getProductDetails(ProductFeed.UPC_CODE));
-			storeProd.addDetails(Products.QUANTITY, prod.getProductDetails(ProductFeed.QTY_ON_HAND));
-			storeProd.addDetails(Products.MODEL, prod.getProductDetails(ProductFeed.PRODUCT_CODE));
-			storeProd.addDetails(Products.MANUFACTURER, prod.getProductDetails(ProductFeed.BRAND));
-			storeProd.addDetails(Products.PRICE, prod.getProductDetails(ProductFeed.MSRP));
-			storeProd.addDetails(Products.WEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.PRODUCT_WEIGHT_LBS), "0"));
-			storeProd.addDetails(Products.LENGTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.LENGTH_INCHES), "0"));
-			storeProd.addDetails(Products.WIDTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.WIDTH_INCHES), "0"));
-			storeProd.addDetails(Products.HEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.HEIGHT_INCHES), "0"));
+							categoryMap), true);
+			storeProd.addDetails(Products.SKU, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
+			storeProd.addDetails(Products.UPC, prod.getProductDetails(ProductFeed.UPC_CODE), true);
+			storeProd.addDetails(Products.QUANTITY, prod.getProductDetails(ProductFeed.QTY_ON_HAND), false);
+			storeProd.addDetails(Products.MODEL, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
+			storeProd.addDetails(Products.MANUFACTURER, prod.getProductDetails(ProductFeed.BRAND), true);
+			storeProd.addDetails(Products.PRICE, prod.getProductDetails(ProductFeed.MSRP), true);
+			storeProd.addDetails(Products.WEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.PRODUCT_WEIGHT_LBS), "0"), true);
+			storeProd.addDetails(Products.LENGTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.LENGTH_INCHES), "0"), true);
+			storeProd.addDetails(Products.WIDTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.WIDTH_INCHES), "0"), true);
+			storeProd.addDetails(Products.HEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.HEIGHT_INCHES), "0"), true);
 			status = prod.getProductDetails(ProductFeed.STATUS).trim().replaceAll("N/A#","false");
-			storeProd.addDetails(Products.STATUS_ENABLED, "Available".equalsIgnoreCase(status) ? "true" : "false");
+			storeProd.addDetails(Products.STATUS_ENABLED, Boolean.toString("Available".equalsIgnoreCase(status)), false);
 			seo = prod.getProductDetails(ProductFeed.PRODUCT_NAME).trim()
 																.replaceAll("'", "-").replaceAll("\"", "-")
 																.replaceAll(" ", "-").replaceAll("&", "-")
@@ -321,7 +321,7 @@ public class UpdateStore {
 																.replaceAll("\\+", "-").replaceAll("%", "-")
 																.replaceAll(",", "-")
 																.replaceAll("[-]+", "-"); // replace multiple dash with single dash
-			storeProd.addDetails(Products.SEO_KEYWORD, seo);
+			storeProd.addDetails(Products.SEO_KEYWORD, seo, true);
 			// break separated short description and product features
 			prodFeatures = prod.getProductDetails(ProductFeed.PRODUCT_FEATURES);
 			if (isEmpty(prodFeatures)) {
@@ -332,7 +332,7 @@ public class UpdateStore {
 				}
 				prodFeatures = "<br><br><b>Product Features</b><br>" + prodFeatures;
 			}
-			storeProd.addDetails(Products.DESCRIPTION, prod.getProductDetails(ProductFeed.SHORT_DESCRIPTION) + prodFeatures);
+			storeProd.addDetails(Products.DESCRIPTION, prod.getProductDetails(ProductFeed.SHORT_DESCRIPTION) + prodFeatures, true);
 			
 		}
 		
@@ -343,7 +343,7 @@ public class UpdateStore {
 			storeProd = productMap.get(sku);
 			
 			if (storeProd != null) { // if the product does not exist in store, do nothing
-				storeProd.addDetails(Products.QUANTITY, "0");
+				storeProd.addDetails(Products.QUANTITY, "0", false);
 			}
 			
 		}
@@ -435,7 +435,7 @@ public class UpdateStore {
 			// if category does not exist, create a new category
 			if (category == null) {
 				category = populateCategories(Integer.toString(++maxId), cat, "false", "0", "1", "1", "0", "true");
-				category.addDetails(Categories.PARENT_ID, "0");
+				category.addDetails(Categories.PARENT_ID, "0", false);
 				categoryMap.put(cat, category);
 			}
 			// add the category to the list, there is nothing to be done if the category already exist
@@ -456,10 +456,11 @@ public class UpdateStore {
 			
 			// if sub category 1 does not exist, create a new category with sub category 1 value
 			if (category == null) {
-				categoryMap.put(subCat1, populateCategories(Integer.toString(++maxId), subCat1, "false", "0", "1", "1", "0", "true"));
+				category = populateCategories(Integer.toString(++maxId), subCat1, "false", "0", "1", "1", "0", "true"); 
+				categoryMap.put(subCat1, category);
 			}
 			// set the parent id
-			category.addDetails(Categories.PARENT_ID, categoryMap.get(cat).getDetails(Categories.CATEGORY_ID));
+			category.addDetails(Categories.PARENT_ID, categoryMap.get(cat).getDetails(Categories.CATEGORY_ID), false);
 			// add the category to the list
 			updatedStoreCategories.put(subCat1, category);
 		}
@@ -478,11 +479,12 @@ public class UpdateStore {
 			
 			// if sub category 2 does not exist, create a new category with sub category 2 value
 			if (category == null) {
-				categoryMap.put(subCat2, populateCategories(Integer.toString(++maxId), subCat2, "false", "0", "1", "1", "0", "true"));
+				category = populateCategories(Integer.toString(++maxId), subCat2, "false", "0", "1", "1", "0", "true");
+				categoryMap.put(subCat2, category);
 			}
 
 			// set the parent id
-			category.addDetails(Categories.PARENT_ID, categoryMap.get(subCat1).getDetails(Categories.CATEGORY_ID));
+			category.addDetails(Categories.PARENT_ID, categoryMap.get(subCat1).getDetails(Categories.CATEGORY_ID), false);
 			// add the category to the list
 			updatedStoreCategories.put(subCat2, category);
 		}
@@ -507,19 +509,19 @@ public class UpdateStore {
 	private Categories populateCategories(String id, String name, String top, String column, String sortOrder, String languageId, String storeId, String statusEnabled) {
 		
 		Categories category = new Categories();
-		category.addDetails(Categories.CATEGORY_ID, id);
-		category.addDetails(Categories.NAME, name.replaceAll("&", "and"));
-		category.addDetails(Categories.TOP, top);
-		category.addDetails(Categories.COLUMNS, column);
-		category.addDetails(Categories.SORT_ORDER, sortOrder);
-		category.addDetails(Categories.DATE_ADDED, DATETIME_FORMAT.format(new Date()));
-		category.addDetails(Categories.DATE_MODIFIED, DATETIME_FORMAT.format(new Date()));
-		category.addDetails(Categories.LANGUAGE_ID, languageId);
-		category.addDetails(Categories.SEO_KEYWORD, name);
-		category.addDetails(Categories.META_DESCRIPTION, name);
-		category.addDetails(Categories.META_KEYWORDS, name);
-		category.addDetails(Categories.STORE_IDS, storeId);
-		category.addDetails(Categories.STATUS_ENABLED, statusEnabled);
+		category.addDetails(Categories.CATEGORY_ID, id, false);
+		category.addDetails(Categories.NAME, name.replaceAll("&", "and"), false);
+		category.addDetails(Categories.TOP, top, false);
+		category.addDetails(Categories.COLUMNS, column, false);
+		category.addDetails(Categories.SORT_ORDER, sortOrder, false);
+		category.addDetails(Categories.DATE_ADDED, DATETIME_FORMAT.format(new Date()), false);
+		category.addDetails(Categories.DATE_MODIFIED, DATETIME_FORMAT.format(new Date()), false);
+		category.addDetails(Categories.LANGUAGE_ID, languageId, false);
+		category.addDetails(Categories.SEO_KEYWORD, name, false);
+		category.addDetails(Categories.META_DESCRIPTION, name, false);
+		category.addDetails(Categories.META_KEYWORDS, name, false);
+		category.addDetails(Categories.STORE_IDS, storeId, false);
+		category.addDetails(Categories.STATUS_ENABLED, statusEnabled, false);
 		
 		return category;
 	}
@@ -903,7 +905,7 @@ public class UpdateStore {
 
 				cell = sheet.getCell(j, i);
 
-				sheetItem.addDetails(j, cell.getContents());
+				sheetItem.addDetails(j, cell.getContents(), false);
 
 			}
 

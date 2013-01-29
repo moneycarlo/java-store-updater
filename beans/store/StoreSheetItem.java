@@ -2,7 +2,7 @@ package excel.beans.store;
 
 public interface StoreSheetItem {
 
-	public void addDetails(int detailId, String detail);
+	public void addDetails(int detailId, String detail, boolean onlyIfEmpty);
 	
 	public String getDetails(int detailId);
 	
