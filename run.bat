@@ -1,5 +1,5 @@
 echo off
 echo Running
-java -classpath jxl.jar;.; excel.UpdateStore
+java -Xms1024m -Xmx2048m -classpath jxl.jar;.; excel.UpdateStore
 echo Complete
 pause
