@@ -1,4 +1,5 @@
 package excel;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -62,11 +63,6 @@ public class UpdateStore {
 			errors = true;
 		}
 
-		if (qtyFeedFile == null || !(new File(qtyFeedFile)).exists()) {
-			System.out.println("Quantity feed file missing or does not exist at location specified\nCheck qty.feed.file.input in properties file\n");
-			errors = true;
-		}
-		
 		if (discontinuedFile == null || !(new File(discontinuedFile)).exists()) {
 			System.out.println("Discontinued file location missing or file does not exist at location spefified\nCheck discontinued.file.input in properties file\n");
 			errors = true;
@@ -89,6 +85,13 @@ public class UpdateStore {
 			}
 			
 		}
+		
+		if (!updateAll) {
+			if (qtyFeedFile == null || !(new File(qtyFeedFile)).exists()) {
+				System.out.println("Quantity feed file missing or does not exist at location specified\nCheck qty.feed.file.input in properties file\n");
+				errors = true;
+			}
+		}
 
 		if (errors) {
 			System.out.println("Cannot contiue, please correct the errors above and try again\n");
@@ -110,18 +113,27 @@ public class UpdateStore {
 			
 			// Read list of disabled SKUs
 			List<String> discontinuedProducts = create.readDiscontinuedProducts(discontinuedFile);
+			
+			// map of categories with name as key and entire category as value
+			Map<String, StoreSheetItem> categoryMap = create.generateItemMap(st.getAllCategories(), Categories.NAME);
+
+			// generate products map with SKU as key and entire product as value
+			Map<String, StoreSheetItem> productMap = create.generateItemMap(st.getAllProducts(), Products.SKU);
+
+			List<ProductFeed> feedList = create.getFeedList(feedContents);
 
 			// update categories
-			create.updateCategories(st, feedContents);
+			create.updateCategories(st, feedContents, categoryMap, feedList);
 
 			// update products
-			create.updateProducts(st, feedContents, discontinuedProducts);
+			create.updateProducts(st, feedContents, discontinuedProducts, productMap, categoryMap, feedList);
 
 			// recreate all attributes
-			create.updateAttributes(st, feedContents);
+			create.updateAttributes(st, feedContents, productMap, feedList);
 
 			// create all specials
-			create.updateSpecials(st, feedContents);
+			create.updateSpecials(st, feedContents, productMap, feedList);
+			
 		} else {
 
 			System.out.println("Update qty parameter provided, updating only quantities");
@@ -143,12 +155,9 @@ public class UpdateStore {
 	 * @param storeContents
 	 * @param feedContents
 	 */
-	private void updateSpecials(Store storeContents, Map<String, ProductFeed> feedContents) {
+	private void updateSpecials(Store storeContents, Map<String, ProductFeed> feedContents, Map<String, StoreSheetItem> productMap, List<ProductFeed> feedList) {
 		
-		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
-		Map<String, StoreSheetItem> productMap = generateItemMap(storeProducts, Products.SKU);
-		
-		List<ProductFeed> feedList = getFeedList(feedContents);
+		System.out.println("Updating specials");
 		
 		List<StoreSheetItem> specialsList = new ArrayList<StoreSheetItem>();
 
@@ -165,7 +174,7 @@ public class UpdateStore {
 			prod = feedList.get(i);
 			
 			// product sku
-			sku = prod.getProductDetails(ProductFeed.PRODUCT_CODE);
+			sku = prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO);
 			
 			// get the product in the store based on the sku
 			storeProduct =  productMap.get(sku);
@@ -190,6 +199,7 @@ public class UpdateStore {
 			storeContents.putAllSpecials(generateItemListMap(specialsList, Attributes.PRODUCT_ID));
 			
 		}
+
 	}
 	
 	/**
@@ -197,12 +207,9 @@ public class UpdateStore {
 	 * @param storeContents
 	 * @param feedContents
 	 */
-	private void updateAttributes(Store storeContents, Map<String, ProductFeed> feedContents) {
+	private void updateAttributes(Store storeContents, Map<String, ProductFeed> feedContents, Map<String, StoreSheetItem> productMap, List<ProductFeed> feedList) {
 		
-		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
-		Map<String, StoreSheetItem> productMap = generateItemMap(storeProducts, Products.SKU);
-		
-		List<ProductFeed> feedList = getFeedList(feedContents);
+		System.out.println("Updating attributes");
 		
 		List<StoreSheetItem> attributesliList = new ArrayList<StoreSheetItem>();
 		ProductFeed prod;
@@ -219,7 +226,7 @@ public class UpdateStore {
 			prod = feedList.get(i);
 			
 			// product sku
-			sku = prod.getProductDetails(ProductFeed.PRODUCT_CODE);
+			sku = prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO);
 			
 			// get the product in the store based on the sku
 			storeProduct =  productMap.get(sku);
@@ -334,11 +341,11 @@ public class UpdateStore {
 	 */
 	private void updateQty(Store storeContents, Map<String, QtyOnHandFeed> qtyOnHandFeed) {
 		
+		System.out.println("Updating quantity");
+		
 		// get all existing products
 		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
 		String sku;
-		String qty;
-		StoreSheetItem product;
 		
 		for (int i = 0; i < storeProducts.size(); i++) {
 			sku = storeProducts.get(i).getDetails(Products.SKU);
@@ -356,23 +363,18 @@ public class UpdateStore {
 	 * @param feedContents
 	 * @param discontinuedProducts
 	 */
-	private void updateProducts(Store storeContents, Map<String, ProductFeed> feedContents, List<String> discontinuedProducts) {
+	private void updateProducts(Store storeContents, Map<String, ProductFeed> feedContents, 
+			List<String> discontinuedProducts, Map<String, StoreSheetItem> productMap, 
+			Map<String, StoreSheetItem> categoryMap,
+			List<ProductFeed> feedList) {
 		
-		// get all the existing categories
-		List<StoreSheetItem> storeCategories = storeContents.getAllCategories();
-		// generate categories map with category name as key and entire category as value
-		Map<String, StoreSheetItem> categoryMap = generateItemMap(storeCategories, Categories.NAME);
+		System.out.println("Updating products");
 		
 		// get all existing products
 		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
-		// generate products map with SKU as key and entire product as value
-		Map<String, StoreSheetItem> productMap = generateItemMap(storeProducts, Products.SKU);
 		
 		// List to hold modified products
 		List<StoreSheetItem> updatedStoreProducts = storeContents.getAllProducts();
-		
-		// list of feed items
-		List<ProductFeed> feedList = getFeedList(feedContents);
 		
 		ProductFeed prod;
 		StoreSheetItem storeProd;
@@ -390,7 +392,7 @@ public class UpdateStore {
 		for (int i = 0; i < feedList.size(); i++) {
 			
 			prod = feedList.get(i);
-			sku = prod.getProductDetails(ProductFeed.PRODUCT_CODE);
+			sku = prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO);
 			storeProd = productMap.get(sku);
 			
 			if (storeProd == null) {
@@ -421,26 +423,26 @@ public class UpdateStore {
 			// image = image.substring(image.lastIndexOf("/")); - used when image field is correct
 
 			metadesc = prod.getProductDetails(ProductFeed.SHORT_DESCRIPTION);
-			metadesc = metadesc.substring(0,metadesc.indexOf("."));
+			metadesc = metadesc.substring(0, metadesc.indexOf(".") == -1 ? metadesc.length() : metadesc.indexOf("."));
 			storeProd.addDetails(Products.META_DESCRIPTION, metadesc + ".", true);
-			image = prod.getProductDetails(ProductFeed.PRODUCT_CODE).trim().replaceAll(" ", "-");			
+			image = prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO).trim().replaceAll(" ", "-");			
 			storeProd.addDetails(Products.IMAGE_NAME, "data/" + image + ".jpg", true);
 			storeProd.addDetails(Products.NAME, prod.getProductDetails(ProductFeed.PRODUCT_NAME), true);
 			// comma separated categories
 			storeProd.addDetails(Products.CATEGORIES,
 					lookupCategories(prod.getProductDetails(ProductFeed.CATEGORY),
-							prod.getProductDetails(ProductFeed.SUB_CATEGORY_1),
-							prod.getProductDetails(ProductFeed.SUB_CATEGORY_2),
+							prod.getProductDetails(ProductFeed.SUBCATEGORY),
+							prod.getProductDetails(ProductFeed.SUBCATEGORY_2),
 							categoryMap), true);
-			storeProd.addDetails(Products.SKU, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
-			storeProd.addDetails(Products.UPC, prod.getProductDetails(ProductFeed.UPC_CODE), true);
+			storeProd.addDetails(Products.SKU, prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO), true);
+			storeProd.addDetails(Products.UPC, prod.getProductDetails(ProductFeed.UPC), true);
 //			storeProd.addDetails(Products.QUANTITY, prod.getProductDetails(ProductFeed.QTY_ON_HAND), false);
 			String quan = prod.getProductDetails(ProductFeed.QTY_ON_HAND).trim().replaceAll("#N/A","0");
 			storeProd.addDetails(Products.QUANTITY, quan, false);
-			storeProd.addDetails(Products.MODEL, prod.getProductDetails(ProductFeed.PRODUCT_CODE), true);
+			storeProd.addDetails(Products.MODEL, prod.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO), true);
 			storeProd.addDetails(Products.MANUFACTURER, prod.getProductDetails(ProductFeed.BRAND), true);
-			storeProd.addDetails(Products.PRICE, prod.getProductDetails(ProductFeed.MSRP), true);
-			storeProd.addDetails(Products.WEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.PRODUCT_WEIGHT_LBS), "0"), true);
+			storeProd.addDetails(Products.PRICE, prod.getProductDetails(ProductFeed.SRP), true);
+			storeProd.addDetails(Products.WEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.WEIGHT_LBS), "0"), true);
 			storeProd.addDetails(Products.LENGTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.LENGTH_INCHES), "0"), true);
 			storeProd.addDetails(Products.WIDTH, checkAndReturnDefault(prod.getProductDetails(ProductFeed.WIDTH_INCHES), "0"), true);
 			storeProd.addDetails(Products.HEIGHT, checkAndReturnDefault(prod.getProductDetails(ProductFeed.HEIGHT_INCHES), "0"), true);
@@ -530,9 +532,12 @@ public class UpdateStore {
 	 * Update the contents for Categories sheet
 	 * @param storeCategories Existing categories in store
 	 * @param feedContents Feed contents
+	 * @param categoryMap
 	 * @return updated categories
 	 */
-	private void updateCategories(Store storeContents, Map<String, ProductFeed> feedContents) {
+	private void updateCategories(Store storeContents, Map<String, ProductFeed> feedContents, Map<String, StoreSheetItem> categoryMap, List<ProductFeed> feedList) {
+		
+		System.out.println("Updating categories");
 		
 		// all existing categories in store
 		List<StoreSheetItem> storeCategories = storeContents.getAllCategories();
@@ -540,11 +545,6 @@ public class UpdateStore {
 		// Map to hold modified categories
 		Map<String, StoreSheetItem> updatedStoreCategories = new HashMap<String, StoreSheetItem>();
 
-		// list of feed items
-		List<ProductFeed> feedList = getFeedList(feedContents);
-		
-		// map of categories with name as key and entire category as value
-		Map<String, StoreSheetItem> categoryMap = generateItemMap(storeCategories, Categories.NAME);
 		
 		// get max id of existing categories
 		int maxId = getMaxId(storeCategories, Categories.CATEGORY_ID);
@@ -581,7 +581,7 @@ public class UpdateStore {
 			cat = feedList.get(i).getProductDetails(ProductFeed.CATEGORY);
 			
 			// get the sub category 1 from the feed
-			subCat1 = feedList.get(i).getProductDetails(ProductFeed.SUB_CATEGORY_1);
+			subCat1 = feedList.get(i).getProductDetails(ProductFeed.SUBCATEGORY);
 			
 			// get existing category from store based on sub category 1 value
 			category = categoryMap.get(subCat1);
@@ -601,10 +601,10 @@ public class UpdateStore {
 		for (int i = 0; i < feedList.size(); i++) {
 			
 			// get the sub category 1 from feed
-			subCat1 = feedList.get(i).getProductDetails(ProductFeed.SUB_CATEGORY_1);
+			subCat1 = feedList.get(i).getProductDetails(ProductFeed.SUBCATEGORY);
 			
 			// get the sub category 2 from feed
-			subCat2 = feedList.get(i).getProductDetails(ProductFeed.SUB_CATEGORY_2);
+			subCat2 = feedList.get(i).getProductDetails(ProductFeed.SUBCATEGORY_2);
 			
 			// get the existing category from store based on sub category 2 value
 			category = categoryMap.get(subCat2);
@@ -702,6 +702,8 @@ public class UpdateStore {
 	 * @param storeContents updated contents to write
 	 */
 	private void writeStoreContents(String outStoreFile, Store storeContents) {
+		
+		System.out.println("Writing new store contents");
 
 		File file = new File(outStoreFile);
 
@@ -823,6 +825,7 @@ public class UpdateStore {
 	 * @return {@link List} of disabled SKUs
 	 */
 	private List<String> readDiscontinuedProducts(String disabledFileLocation) {
+		System.out.println("Reading discontinued products");
 		
 		List<String> disabledSKUs = new ArrayList<String>();
 		
@@ -860,6 +863,7 @@ public class UpdateStore {
 	 * @return contents from all the sheets
 	 */
 	private Store readExportedContents(String inStoreFile) {
+		System.out.println("Reading store contents");
 		Store st = new Store();
 
 		File inputWorkbook = new File(inStoreFile);
@@ -1056,10 +1060,12 @@ public class UpdateStore {
 	 * @throws IOException
 	 */
 	private Map<String, ProductFeed> readFeed(String feedFile) {
+		System.out.println("Reading feed");
 		File inputWorkbook = new File(feedFile);
 		Workbook w;
 		Map<String, ProductFeed> productFeed = new HashMap<String, ProductFeed>();
 		ProductFeed singleProduct;
+		int numberOfColumns = ProductFeed.TOTAL_COLUMNS; // assuming the count to be total number of columns as of 2/10/2013
 		try {
 			w = Workbook.getWorkbook(inputWorkbook);
 			// Get the first sheet
@@ -1071,7 +1077,7 @@ public class UpdateStore {
 
 				singleProduct = new ProductFeed();
 
-				for (int j = 0; j < sheet.getColumns(); j++) {
+				for (int j = 0; j < numberOfColumns; j++) {
 
 					Cell cell = sheet.getCell(j, i);
 
@@ -1079,10 +1085,10 @@ public class UpdateStore {
 
 				}
 
-				if (productFeed.containsKey(singleProduct.getProductDetails(ProductFeed.PRODUCT_CODE))) {
-					System.err.println(singleProduct.getProductDetails(ProductFeed.PRODUCT_CODE) + " is repeating");
+				if (productFeed.containsKey(singleProduct.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO))) {
+					System.err.println(singleProduct.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO) + " is repeating");
 				} else {
-					productFeed.put(singleProduct.getProductDetails(ProductFeed.PRODUCT_CODE), singleProduct);
+					productFeed.put(singleProduct.getProductDetails(ProductFeed.NEW_UNFI_PROD_NO), singleProduct);
 				}
 
 			}
@@ -1102,6 +1108,9 @@ public class UpdateStore {
 	 * @throws IOException
 	 */
 	private Map<String, QtyOnHandFeed> readQtyFeed(String feedFile) {
+		
+		System.out.println("Reading quantity feed");
+		
 		File inputWorkbook = new File(feedFile);
 		Workbook w;
 		Map<String, QtyOnHandFeed> qtyFeed = new HashMap<String, QtyOnHandFeed>();
