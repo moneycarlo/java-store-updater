@@ -124,7 +124,7 @@ public class UpdateStore {
 
 			// update categories
 			create.updateCategories(st, feedContents, categoryMap, feedList);
-
+			
 			// update products
 			create.updateProducts(st, feedContents, discontinuedProducts, productMap, categoryMap, feedList);
 
@@ -182,7 +182,7 @@ public class UpdateStore {
 			// if the product is missing, we cannot get the product id to put in attributes, ignore the product
 			// should not ideally happen since the product is already updated, but still a safe check to avoid NPE
 			if (storeProduct == null) {
-				System.err.println("Product with SKU " + sku + " not found");
+				System.err.println("Product with SKU " + sku + " not found while trying to update specials");
 				continue;
 			}
 
@@ -195,10 +195,10 @@ public class UpdateStore {
 				specialsList.add(storeSpecials);
 			}
 			
-			// put all the specials back in store
-			storeContents.putAllSpecials(generateItemListMap(specialsList, Attributes.PRODUCT_ID));
 			
 		}
+		// put all the specials back in store
+		storeContents.putAllSpecials(generateItemListMap(specialsList, Attributes.PRODUCT_ID));
 
 	}
 	
@@ -234,7 +234,7 @@ public class UpdateStore {
 			// if the product is missing, we cannot get the product id to put in attributes, ignore the product
 			// should not ideally happen since the product is already updated, but still a safe check to avoid NPE
 			if (storeProduct == null) {
-				System.err.println("Product with SKU " + sku + " not found");
+				System.err.println("Product with SKU " + sku + " not found while trying to update attributes");
 				continue;
 			}
 
@@ -370,9 +370,6 @@ public class UpdateStore {
 		
 		System.out.println("Updating products");
 		
-		// get all existing products
-		List<StoreSheetItem> storeProducts = storeContents.getAllProducts();
-		
 		// List to hold modified products
 		List<StoreSheetItem> updatedStoreProducts = storeContents.getAllProducts();
 		
@@ -380,7 +377,7 @@ public class UpdateStore {
 		StoreSheetItem storeProd;
 		
 		// get the product id
-		int maxId = getMaxId(storeProducts, Products.PRODUCT_ID);
+		int maxId = getMaxId(updatedStoreProducts, Products.PRODUCT_ID);
 		
 		String sku;
 		String image;
@@ -415,6 +412,7 @@ public class UpdateStore {
 				storeProd.addDetails(Products.SUBTRACT, "true", false);
 				storeProd.addDetails(Products.MINIMUM, "1", false);
 				updatedStoreProducts.add(storeProd);
+				productMap.put(sku, storeProd);
 			}
 			
 			// update product information from feed
@@ -543,8 +541,7 @@ public class UpdateStore {
 		List<StoreSheetItem> storeCategories = storeContents.getAllCategories();
 		
 		// Map to hold modified categories
-		Map<String, StoreSheetItem> updatedStoreCategories = new HashMap<String, StoreSheetItem>();
-
+		Map<String, StoreSheetItem> updatedStoreCategories = categoryMap;
 		
 		// get max id of existing categories
 		int maxId = getMaxId(storeCategories, Categories.CATEGORY_ID);
@@ -942,7 +939,7 @@ public class UpdateStore {
 		for (int i = 0; i < items.size(); i++) {
 			
 			item = items.get(i);
-			
+			keyBuffer = new StringBuffer();
 			for (int j = 0; j < keys.length; j++) {
 				keyBuffer.append(item.getDetails(keys[j])).append(";");
 			}
