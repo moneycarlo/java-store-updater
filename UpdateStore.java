@@ -130,9 +130,11 @@ public class UpdateStore {
 
 			// recreate all attributes
 			create.updateAttributes(st, feedContents, productMap, feedList);
+			
+			Map<String, StoreSheetItem> specialsMap = create.generateItemMap(create.generateItemList(st.getAllSpecials()), Specials.PRODUCT_ID);
 
 			// create all specials
-			create.updateSpecials(st, feedContents, productMap, feedList);
+			create.updateSpecials(st, feedContents, specialsMap, productMap, feedList);
 			
 		} else {
 
@@ -155,7 +157,8 @@ public class UpdateStore {
 	 * @param storeContents
 	 * @param feedContents
 	 */
-	private void updateSpecials(Store storeContents, Map<String, ProductFeed> feedContents, Map<String, StoreSheetItem> productMap, List<ProductFeed> feedList) {
+	private void updateSpecials(Store storeContents, Map<String, ProductFeed> feedContents, Map<String, StoreSheetItem> specialsMap,  
+			Map<String, StoreSheetItem> productMap, List<ProductFeed> feedList) {
 		
 		System.out.println("Updating specials");
 		
@@ -189,10 +192,27 @@ public class UpdateStore {
 			// get the product id in DB
 			productId = storeProduct.getDetails(Products.PRODUCT_ID);
 
-			// if map value exists, create a new specials item
+			// if map value exists, create a new specials item, else check if a special already exists, put that in the list
+			/*
+			 * scenarios:
+			 *	map = x, special = y
+			 *	output: special = x
+			 *	
+			 *	map = null, special = 2
+			 *	output: special = 2 (no changes to existing special)
+			 *	
+			 *	map = 1, special = null
+			 *	output: special = 1
+			 *	
+			 *	map = null, special = null
+			 *	output: special = null (no changes as it remains null)
+			 * 
+			 */
 			if (!isEmpty(prod.getProductDetails(ProductFeed.MAP))) {
 				storeSpecials = createSpecials(productId, "Default", "0", prod.getProductDetails(ProductFeed.MAP), "0000-00-00", "0000-00-00");
 				specialsList.add(storeSpecials);
+			} else if (specialsMap.get(productId) != null) {
+				specialsList.add(specialsMap.get(productId));
 			}
 			
 			
